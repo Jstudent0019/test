@@ -1,3 +1,1561 @@
 <!DOCTYPE html>
-<!-- content omitted for brevity -->
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>輕鬆篩 - 客戶資料管理系統</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #ffffff;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --accent-color: #495057;
+            --hover-color: #e9ecef;
+            --shadow: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-hover: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-card: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #adb5bd;
+            --border-color: #495057;
+            --accent-color: #6c757d;
+            --hover-color: #343a40;
+            --shadow: 0 2px 4px rgba(0,0,0,0.3);
+            --shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #343a40;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-secondary {
+            background: var(--text-secondary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--text-primary);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            min-height: calc(100vh - 40px);
+        }
+
+        .sidebar {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .main-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 24px;
+            min-height: calc(100vh - 80px);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--hover-color);
+        }
+
+        .customer-list {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .customer-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .customer-item:hover {
+            background: var(--hover-color);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .customer-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+        }
+
+        .customer-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .customer-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            background: var(--bg-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 24px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent-color);
+            background: var(--hover-color);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--accent-color);
+            background: var(--hover-color);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(73, 80, 87, 0.1);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            table-layout: auto;
+        }
+
+        .data-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .data-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 13px;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .data-table tr:hover {
+            background: var(--hover-color);
+        }
+
+        .table-container {
+            width: 100%;
+            max-height: 400px;
+            overflow: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            position: relative;
+        }
+
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        .table-container::-webkit-scrollbar-corner {
+            background: var(--bg-secondary);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            margin: 5% auto;
+            padding: 24px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid var(--border-color);
+            animation: slideIn 0.3s ease;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .confirm-modal .modal-content {
+            max-width: 400px;
+        }
+
+        .confirm-modal h3 {
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .confirm-modal p {
+            margin-bottom: 24px;
+            color: var(--text-secondary);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-hover);
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .notification.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .notification.error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .notification.info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .filter-section {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .error-message {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #f5c6cb;
+            font-size: 14px;
+        }
+
+        .success-message {
+            color: #155724;
+            background: #d4edda;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #c3e6cb;
+            font-size: 14px;
+        }
+
+        .delete-log {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .delete-log-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .edit-log {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .edit-log-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: var(--bg-card);
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-color);
+            font-size: 13px;
+        }
+
+        .log-entry.add {
+            border-left-color: #28a745;
+        }
+
+        .log-entry.delete {
+            border-left-color: #dc3545;
+        }
+
+        .log-entry.edit {
+            border-left-color: #ffc107;
+        }
+
+        .log-timestamp {
+            color: var(--text-secondary);
+            font-size: 11px;
+            margin-top: 4px;
+        }
+
+        .data-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .column-toggle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .column-toggle.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            
+            .sidebar {
+                position: static;
+                order: 2;
+            }
+            
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav">
+            <h1>輕鬆篩</h1>
+            <div class="nav-buttons">
+                <button class="theme-toggle" onclick="toggleTheme()" title="切換主題">
+                    <span id="themeIcon">🌙</span>
+                </button>
+                <button class="btn btn-small" onclick="showEditHistoryModal()">編輯紀錄</button>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- 左側邊欄 -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">客戶列表</div>
+                    <button class="btn btn-small" onclick="showAddCustomerModal()">新增</button>
+                </div>
+                <div id="customersList" class="customer-list"></div>
+                
+                <!-- 刪除紀錄區域 -->
+                <div id="deleteLogSection" class="delete-log" style="display: none;">
+                    <div class="delete-log-title">刪除紀錄</div>
+                    <div id="deleteLogEntries"></div>
+                    <button class="btn btn-small btn-secondary" onclick="toggleDeleteLog()" style="margin-top: 8px;">隱藏紀錄</button>
+                </div>
+                <button class="btn btn-small btn-secondary" onclick="toggleDeleteLog()" id="showDeleteLogBtn" style="margin-top: 12px;">查看刪除紀錄</button>
+            </div>
+
+            <!-- 主要內容區 -->
+            <div class="main-content">
+                <!-- 檔案上傳 -->
+                <div id="uploadSection">
+                    <div class="upload-area" id="uploadArea">
+                        <div id="uploadText">
+                            <h3>拖拽檔案到此處或點擊上傳</h3>
+                            <p>支援 .csv 和 .xlsx 格式</p>
+                        </div>
+                    </div>
+                    <input type="file" id="fileInput" accept=".csv,.xlsx" style="display: none;">
+                    <div id="uploadStatus"></div>
+                    <div id="dataPreview"></div>
+                    
+                    <!-- 資料篩選區域 -->
+                    <div id="filterSection" style="margin-top: 24px;">
+                        <div class="filter-section">
+                            <h4 style="margin-bottom: 16px;">資料篩選</h4>
+                            <div class="filter-grid">
+                                <div class="form-group">
+                                    <label>篩選欄位</label>
+                                    <select id="columnSelect">
+                                        <option value="">請先上傳檔案</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>選擇客戶</label>
+                                    <select id="customerSelect">
+                                        <option value="">請選擇客戶</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn" onclick="filterData()">開始篩選</button>
+                                <button type="button" class="btn btn-secondary" onclick="window.exportFilteredData()">匯出結果</button>
+                            </div>
+                        </div>
+                        <div id="filteredResults"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新增客戶 Modal -->
+        <div id="addCustomerModal" class="modal">
+            <div class="modal-content">
+                <h3>新增客戶</h3>
+                <form id="addCustomerForm">
+                    <div class="form-group">
+                        <label for="customerName">客戶名稱</label>
+                        <input type="text" id="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="customerAccounts">帳號列表（每行一個）</label>
+                        <textarea id="customerAccounts" rows="8" placeholder="請輸入帳號，每行一個"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button type="button" class="btn" id="addCustomerBtn">新增</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 編輯客戶 Modal -->
+        <div id="editCustomerModal" class="modal">
+            <div class="modal-content">
+                <h3>編輯客戶</h3>
+                <form id="editCustomerForm">
+                    <div class="form-group">
+                        <label for="editCustomerName">客戶名稱</label>
+                        <input type="text" id="editCustomerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editCustomerAccounts">帳號列表（每行一個）</label>
+                        <textarea id="editCustomerAccounts" rows="8"></textarea>
+                    </div>
+                    <div id="editLog" class="edit-log">
+                        <div class="edit-log-title">最近編輯紀錄 (最近3筆)</div>
+                        <div id="editLogEntries"></div>
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                            完整紀錄請至頂部「編輯紀錄」查看
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button type="button" class="btn" id="editCustomerBtn">更新</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 編輯紀錄查詢 Modal -->
+        <div id="editHistoryModal" class="modal">
+            <div class="modal-content" style="max-width: 800px;">
+                <h3>編輯紀錄查詢</h3>
+                <div class="form-group">
+                    <label>選擇客戶</label>
+                    <select id="historyCustomerSelect">
+                        <option value="">請選擇客戶</option>
+                    </select>
+                </div>
+                <div id="customerEditHistory" style="max-height: 400px; overflow-y: auto; margin-top: 16px;"></div>
+                <div style="display: flex; gap: 12px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">關閉</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 確認對話框 Modal -->
+        <div id="confirmModal" class="modal confirm-modal">
+            <div class="modal-content">
+                <h3 id="confirmTitle">確認</h3>
+                <p id="confirmMessage"></p>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-danger" id="confirmYes">確定</button>
+                    <button type="button" class="btn btn-secondary" id="confirmNo">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 通知訊息區域 -->
+        <div id="notificationContainer"></div>
+    </div>
+
+    <script>
+        // 全域變數
+        let uploadedData = [];
+        let filteredData = [];
+        let editingCustomerId = null;
+        let visibleColumns = [];
+
+        // 資料儲存 key
+        const STORAGE_KEYS = {
+            CUSTOMERS: 'easy_filter_customers',
+            EDIT_LOGS: 'easy_filter_edit_logs',
+            DELETED_CUSTOMERS: 'easy_filter_deleted_customers'
+        };
+
+        // 資料管理函數
+        const DataManager = {
+            // 預設客戶資料
+            defaultCustomers: [
+                { 
+                    "name": "BT0037", 
+                    "accounts": ["3000643882", "3000643468", "3000643464", "3000592442", "3000592452", "3000578052", "3000621840", "3000643474", "3000644969", "3000644933", "3000630722", "3000630737", "3000653467", "3000721984", "3000651412", "3000723268", "3000724195", "3000728943", "3000725393", "3000728949", "3000627923", "3000586066", "3000636415", "3000577814", "3000627472", "3000577304", "3000586469", "3000651650"] 
+                }, 
+                { 
+                    "name": "DK0355", 
+                    "accounts": ["hid_sbi691djsioqdx0", "hid_u_6r_se160-nami", "hid_qxask2hxu_uc1kc", "hid_fnjox1xnurip37s", "hid_8dfurjko_1gr3f5", "hid_7o5pp8clx23vo--", "hid_va64xrw9w97x0c0", "hid_v035qpt68hi2shb", "hid_xl9im66htaejrat", "hid_e1o9xquvxf_r9wq", "hid_5_6invfpu5fl6gw", "hid_8zui0z5b4svo-a2", "hid_hsla57_7yp42sor", "hid_p5dbqyzs2_8mmh0", "hid_rt7a61_onjl7xi0", "hid_l4-53kn2eeqwdm7", "hid_3z91n-u_swlavo0", "hid_4arnh84gkf26gp9", "hid_85s7ubvxufa25ca", "hid_e268-h37p9upf89", "hid_irqdf0tqndkinej", "hid_lc7e-a4891z-9cy", "hid_c9j3nn33vk0xm7_", "hid_v197anzwdlvyc91", "hid_ja1a8j52xshu7zr", "hid_b8ag2m-rmqqe1fl", "hid_5-hy__7tkj43b3t", "hid_2_h53h23ww2a7lp", "hid_svmhlhjt74ctnlv", "hid_6mxt93xq2mhotyn", "hid_s2_1kjr8_pbezkc"] 
+                }, 
+                { 
+                    "name": "DK0577", 
+                    "accounts": ["hid_6pesiqee5idgoyd", "hid_cgbcu8c-jn6tb_7", "hid_-dsr2v-6ynt-_ch", "hid_ip59g0rsnzam2h3", "hid_hc0qlz7gz18j1ai", "hid_lq6gaz5_tzj-9r9", "hid_b87-3z7ucsogk49", "hid_u4apep7yihzsc-e", "hid_dmmjmnrwccrhuhl", "hid_3nl5_2mkosnvb34", "hid_4_qjnyb3i7w_vue", "hid_k_h8gp226vppd7s", "hid_yd0e_15jrbobnnu", "hid__njnu41r7c64jqq", "hid_uz1k3glruq6-7qb", "hid_9un73606vpz47qb", "hid_4ic99hp_x3my9wg", "hid_x_pvoibce6_1e92", "hid_y79ud448lenwtzh", "hid_wqev6fjvlahr8z6", "hid_saxm75nnrptj4ju"] 
+                }
+            ],
+
+            // 取得客戶資料
+            getCustomers: function() {
+                const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+                if (stored) {
+                    try {
+                        return JSON.parse(stored);
+                    } catch (e) {
+                        console.error('Error parsing customers:', e);
+                    }
+                }
+                // 如果沒有儲存的資料，使用預設客戶資料
+                const defaultData = this.defaultCustomers.map((customer, index) => ({
+                    id: Date.now() + index,
+                    name: customer.name,
+                    accounts: customer.accounts
+                }));
+                this.saveCustomers(defaultData);
+                return defaultData;
+            },
+
+            // 儲存客戶資料
+            saveCustomers: function(customers) {
+                localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
+            },
+
+            // 取得編輯紀錄
+            getEditLogs: function() {
+                const stored = localStorage.getItem(STORAGE_KEYS.EDIT_LOGS);
+                if (stored) {
+                    try {
+                        return JSON.parse(stored);
+                    } catch (e) {
+                        console.error('Error parsing edit logs:', e);
+                    }
+                }
+                return {};
+            },
+
+            // 儲存編輯紀錄
+            saveEditLogs: function(logs) {
+                localStorage.setItem(STORAGE_KEYS.EDIT_LOGS, JSON.stringify(logs));
+            },
+
+            // 取得刪除紀錄
+            getDeletedCustomers: function() {
+                const stored = localStorage.getItem(STORAGE_KEYS.DELETED_CUSTOMERS);
+                if (stored) {
+                    try {
+                        return JSON.parse(stored);
+                    } catch (e) {
+                        console.error('Error parsing deleted customers:', e);
+                    }
+                }
+                return [];
+            },
+
+            // 儲存刪除紀錄
+            saveDeletedCustomers: function(deleted) {
+                localStorage.setItem(STORAGE_KEYS.DELETED_CUSTOMERS, JSON.stringify(deleted));
+            }
+        };
+
+        // 主題切換
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            document.getElementById('themeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // 客戶排序函數
+        function sortCustomers(customers) {
+            return customers.sort((a, b) => {
+                const nameA = a.name.toLowerCase();
+                const nameB = b.name.toLowerCase();
+                
+                const extractParts = (str) => {
+                    const match = str.match(/^([a-zA-Z]*)(\d*)(.*)$/);
+                    return {
+                        letter: match[1] || '',
+                        number: parseInt(match[2]) || 0,
+                        rest: match[3] || ''
+                    };
+                };
+                
+                const partsA = extractParts(nameA);
+                const partsB = extractParts(nameB);
+                
+                if (partsA.letter !== partsB.letter) {
+                    return partsA.letter.localeCompare(partsB.letter);
+                }
+                
+                if (partsA.number !== partsB.number) {
+                    return partsA.number - partsB.number;
+                }
+                
+                return partsA.rest.localeCompare(partsB.rest);
+            });
+        }
+
+        // 初始化主題
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            if (document.getElementById('themeIcon')) {
+                document.getElementById('themeIcon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            }
+        }
+
+        // 載入客戶列表
+        function loadCustomers() {
+            const customersList = document.getElementById('customersList');
+            customersList.innerHTML = '';
+            
+            const customers = DataManager.getCustomers();
+            const sortedCustomers = sortCustomers([...customers]);
+            
+            if (sortedCustomers.length === 0) {
+                customersList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">載入預設客戶資料中...</div>';
+                // 重新載入以顯示預設資料
+                setTimeout(() => {
+                    loadCustomers();
+                }, 100);
+            } else {
+                sortedCustomers.forEach(customer => {
+                    const customerItem = document.createElement('div');
+                    customerItem.className = 'customer-item';
+                    customerItem.innerHTML = `
+                        <div class="customer-name">${customer.name}</div>
+                        <div class="customer-count">${customer.accounts.length} 個帳號</div>
+                        <div class="customer-actions">
+                            <button class="btn btn-small btn-secondary" onclick="editCustomer(${customer.id})">編輯</button>
+                            <button class="btn btn-small btn-danger" onclick="window.deleteCustomer(${customer.id})">刪除</button>
+                        </div>
+                    `;
+                    customersList.appendChild(customerItem);
+                });
+            }
+            
+            updateCustomerSelect();
+            updateHistoryCustomerSelect();
+        }
+
+        // 更新客戶選擇下拉選單
+        function updateCustomerSelect() {
+            const customerSelect = document.getElementById('customerSelect');
+            customerSelect.innerHTML = '<option value="">請選擇客戶</option>';
+            
+            const customers = DataManager.getCustomers();
+            const sortedCustomers = sortCustomers([...customers]);
+            
+            sortedCustomers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = `${customer.name} (${customer.accounts.length}個帳號)`;
+                customerSelect.appendChild(option);
+            });
+        }
+
+        // 更新歷史客戶選擇下拉選單
+        function updateHistoryCustomerSelect() {
+            const historySelect = document.getElementById('historyCustomerSelect');
+            if (!historySelect) return;
+            
+            historySelect.innerHTML = '<option value="">請選擇客戶</option>';
+            
+            const customers = DataManager.getCustomers();
+            const sortedCustomers = sortCustomers([...customers]);
+            
+            sortedCustomers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = customer.name;
+                historySelect.appendChild(option);
+            });
+        }
+
+        // 顯示編輯紀錄 Modal
+        function showEditHistoryModal() {
+            updateHistoryCustomerSelect();
+            document.getElementById('editHistoryModal').style.display = 'block';
+            
+            document.getElementById('historyCustomerSelect').onchange = function() {
+                const customerId = this.value;
+                if (customerId) {
+                    displayFullEditHistory(parseInt(customerId));
+                } else {
+                    document.getElementById('customerEditHistory').innerHTML = '';
+                }
+            };
+        }
+
+        // 顯示完整編輯紀錄
+        function displayFullEditHistory(customerId) {
+            const historyContainer = document.getElementById('customerEditHistory');
+            const editLogs = DataManager.getEditLogs();
+            const logs = editLogs[customerId] || [];
+            const customers = DataManager.getCustomers();
+            const customer = customers.find(c => c.id === customerId);
+            
+            if (logs.length === 0) {
+                historyContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 14px;">此客戶暫無編輯紀錄</div>';
+                return;
+            }
+            
+            let historyHTML = `
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
+                    <strong>${customer ? customer.name : '已刪除客戶'}</strong> 的完整編輯紀錄
+                </div>
+            `;
+            
+            historyHTML += logs.map(log => `
+                <div class="log-entry ${log.action}">
+                    <div>${log.details}</div>
+                    <div class="log-timestamp">${log.timestamp}</div>
+                </div>
+            `).join('');
+            
+            historyContainer.innerHTML = historyHTML;
+        }
+
+        // 顯示新增客戶 Modal
+        function showAddCustomerModal() {
+            document.getElementById('addCustomerModal').style.display = 'block';
+        }
+
+        // 顯示通知訊息
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s ease reverse';
+                setTimeout(() => {
+                    container.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // 自訂確認對話框
+        function showConfirm(title, message, callback) {
+            const modal = document.getElementById('confirmModal');
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            
+            modal.style.display = 'block';
+            
+            const yesBtn = document.getElementById('confirmYes');
+            const noBtn = document.getElementById('confirmNo');
+            
+            function cleanup() {
+                modal.style.display = 'none';
+                yesBtn.removeEventListener('click', handleYes);
+                noBtn.removeEventListener('click', handleNo);
+            }
+            
+            function handleYes() {
+                cleanup();
+                callback(true);
+            }
+            
+            function handleNo() {
+                cleanup();
+                callback(false);
+            }
+            
+            yesBtn.addEventListener('click', handleYes);
+            noBtn.addEventListener('click', handleNo);
+        }
+
+        // 新增客戶
+        function handleAddCustomer() {
+            const name = document.getElementById('customerName').value.trim();
+            const accountsText = document.getElementById('customerAccounts').value;
+            const accounts = accountsText.split('\n')
+                .filter(account => account.trim())
+                .map(account => account.trim());
+            
+            if (!name) {
+                showNotification('請輸入客戶名稱', 'error');
+                return false;
+            }
+            
+            const customers = DataManager.getCustomers();
+            const newCustomer = {
+                id: Date.now(),
+                name: name,
+                accounts: accounts
+            };
+            
+            customers.push(newCustomer);
+            DataManager.saveCustomers(customers);
+            
+            // 記錄新增客戶
+            addEditLog(newCustomer.id, 'add', `新增客戶: ${name}`);
+            
+            // 記錄每個新增的帳號
+            accounts.forEach(account => {
+                addEditLog(newCustomer.id, 'add', `新增帳號: ${account}`);
+            });
+            
+            loadCustomers();
+            closeModal();
+            document.getElementById('addCustomerForm').reset();
+            
+            showNotification(`成功新增客戶「${name}」`, 'success');
+            
+            return false;
+        }
+
+        // 編輯客戶
+        function editCustomer(id) {
+            const customers = DataManager.getCustomers();
+            const customer = customers.find(c => c.id === id);
+            if (customer) {
+                editingCustomerId = id;
+                document.getElementById('editCustomerName').value = customer.name;
+                document.getElementById('editCustomerAccounts').value = customer.accounts.join('\n');
+                
+                displayEditLog(id);
+                
+                document.getElementById('editCustomerModal').style.display = 'block';
+            }
+        }
+
+        // 更新客戶
+        function handleEditCustomer() {
+            const name = document.getElementById('editCustomerName').value.trim();
+            const accountsText = document.getElementById('editCustomerAccounts').value;
+            const newAccounts = accountsText.split('\n')
+                .filter(account => account.trim())
+                .map(account => account.trim());
+            
+            if (!name) {
+                showNotification('請輸入客戶名稱', 'error');
+                return false;
+            }
+            
+            const customers = DataManager.getCustomers();
+            const customerIndex = customers.findIndex(c => c.id === editingCustomerId);
+            if (customerIndex !== -1) {
+                const oldCustomer = customers[customerIndex];
+                const oldAccounts = oldCustomer.accounts;
+                
+                // 找出新增和刪除的帳號
+                const addedAccounts = newAccounts.filter(acc => !oldAccounts.includes(acc));
+                const removedAccounts = oldAccounts.filter(acc => !newAccounts.includes(acc));
+                
+                // 記錄每個新增的帳號
+                addedAccounts.forEach(account => {
+                    addEditLog(editingCustomerId, 'add', `新增帳號: ${account}`);
+                });
+                
+                // 記錄每個刪除的帳號
+                removedAccounts.forEach(account => {
+                    addEditLog(editingCustomerId, 'delete', `刪除帳號: ${account}`);
+                });
+                
+                // 記錄名稱變更
+                if (oldCustomer.name !== name) {
+                    addEditLog(editingCustomerId, 'edit', `更改客戶名稱: ${oldCustomer.name} → ${name}`);
+                }
+                
+                customers[customerIndex] = {
+                    id: editingCustomerId,
+                    name: name,
+                    accounts: newAccounts
+                };
+                
+                DataManager.saveCustomers(customers);
+                loadCustomers();
+                closeModal();
+                editingCustomerId = null;
+                
+                showNotification(`成功更新客戶「${name}」`, 'success');
+            }
+            
+            return false;
+        }
+
+        // 刪除客戶
+        window.deleteCustomer = function(id) {
+            const customers = DataManager.getCustomers();
+            const customer = customers.find(c => c.id === id);
+            if (!customer) return;
+            
+            showConfirm(
+                '確認刪除',
+                `確定要刪除客戶「${customer.name}」嗎？\n此操作無法復原！`,
+                function(confirmed) {
+                    if (confirmed) {
+                        const deleteRecord = {
+                            id: customer.id,
+                            name: customer.name,
+                            accounts: customer.accounts,
+                            deleteTime: new Date().toLocaleString('zh-TW'),
+                            deletedBy: 'user'
+                        };
+                        
+                        const deletedCustomers = DataManager.getDeletedCustomers();
+                        deletedCustomers.unshift(deleteRecord);
+                        
+                        if (deletedCustomers.length > 50) {
+                            deletedCustomers.splice(50);
+                        }
+                        
+                        DataManager.saveDeletedCustomers(deletedCustomers);
+                        
+                        const updatedCustomers = customers.filter(c => c.id !== id);
+                        DataManager.saveCustomers(updatedCustomers);
+                        
+                        // 記錄刪除
+                        addEditLog(id, 'delete', `刪除客戶: ${customer.name}`);
+                        
+                        // 記錄每個刪除的帳號
+                        customer.accounts.forEach(account => {
+                            addEditLog(id, 'delete', `刪除帳號: ${account}`);
+                        });
+                        
+                        loadCustomers();
+                        
+                        if (document.getElementById('deleteLogSection').style.display !== 'none') {
+                            displayDeleteLog();
+                        }
+                        
+                        showNotification(`已刪除客戶「${customer.name}」`, 'success');
+                    }
+                }
+            );
+        }
+
+        // 切換刪除紀錄顯示
+        function toggleDeleteLog() {
+            const deleteLogSection = document.getElementById('deleteLogSection');
+            const showBtn = document.getElementById('showDeleteLogBtn');
+            
+            if (deleteLogSection.style.display === 'none') {
+                deleteLogSection.style.display = 'block';
+                showBtn.style.display = 'none';
+                displayDeleteLog();
+            } else {
+                deleteLogSection.style.display = 'none';
+                showBtn.style.display = 'block';
+            }
+        }
+
+        // 顯示刪除紀錄
+        function displayDeleteLog() {
+            const logContainer = document.getElementById('deleteLogEntries');
+            const deletedCustomers = DataManager.getDeletedCustomers();
+            
+            if (deletedCustomers.length === 0) {
+                logContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 12px;">暫無刪除紀錄</div>';
+                return;
+            }
+            
+            logContainer.innerHTML = deletedCustomers.map(record => {
+                const accountList = record.accounts.length > 5 ? 
+                    record.accounts.slice(0, 5).join(', ') + `... (共 ${record.accounts.length} 個)` : 
+                    record.accounts.join(', ');
+                
+                return `
+                    <div class="log-entry delete">
+                        <div><strong>${record.name}</strong></div>
+                        <div style="margin: 4px 0; font-size: 12px;">帳號: ${accountList || '無帳號'}</div>
+                        <div class="log-timestamp">刪除時間: ${record.deleteTime}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 關閉 Modal
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.style.display = 'none';
+            });
+        }
+
+        // 新增編輯紀錄
+        function addEditLog(customerId, action, details) {
+            const editLogs = DataManager.getEditLogs();
+            
+            if (!editLogs[customerId]) {
+                editLogs[customerId] = [];
+            }
+            
+            const timestamp = new Date().toLocaleString('zh-TW');
+            const logEntry = {
+                timestamp: timestamp,
+                action: action,
+                details: details
+            };
+            
+            editLogs[customerId].unshift(logEntry);
+            
+            // 保留最新的 100 筆紀錄
+            if (editLogs[customerId].length > 100) {
+                editLogs[customerId] = editLogs[customerId].slice(0, 100);
+            }
+            
+            DataManager.saveEditLogs(editLogs);
+        }
+
+        // 顯示編輯紀錄
+        function displayEditLog(customerId) {
+            const logContainer = document.getElementById('editLogEntries');
+            const editLogs = DataManager.getEditLogs();
+            const logs = editLogs[customerId] || [];
+            
+            if (logs.length === 0) {
+                logContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 12px;">暫無編輯紀錄</div>';
+                return;
+            }
+            
+            const recentLogs = logs.slice(0, 3);
+            
+            logContainer.innerHTML = recentLogs.map(log => `
+                <div class="log-entry ${log.action}">
+                    <div>${log.details}</div>
+                    <div class="log-timestamp">${log.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        // 處理檔案上傳
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const fileName = file.name;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            
+            document.getElementById('uploadText').innerHTML = `
+                <h3>正在處理: ${fileName}</h3>
+                <p>請稍候...</p>
+            `;
+
+            if (fileExtension === 'csv') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const csv = e.target.result;
+                    const results = Papa.parse(csv, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true
+                    });
+                    uploadedData = results.data;
+                    displayDataPreview(results.data, results.meta.fields);
+                    updateColumnSelect(results.meta.fields);
+                };
+                reader.readAsText(file);
+            } else if (fileExtension === 'xlsx') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    uploadedData = jsonData;
+                    const fields = Object.keys(jsonData[0] || {});
+                    displayDataPreview(jsonData, fields);
+                    updateColumnSelect(fields);
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                showNotification('不支援的檔案格式！請上傳 CSV 或 XLSX 檔案。', 'error');
+                document.getElementById('uploadText').innerHTML = `
+                    <h3>拖拽檔案到此處或點擊上傳</h3>
+                    <p>支援 .csv 和 .xlsx 格式</p>
+                `;
+            }
+        }
+
+        // 顯示資料預覽
+        function displayDataPreview(data, fields) {
+            const previewContainer = document.getElementById('dataPreview');
+            const previewData = data.slice(0, 10);
+            
+            visibleColumns = fields.slice(0, 8);
+            
+            document.getElementById('uploadText').innerHTML = `
+                <h3>✅ 上傳成功</h3>
+                <p>共 ${data.length} 筆資料，${fields.length} 個欄位</p>
+            `;
+
+            let tableHTML = `
+                <div class="data-preview-header">
+                    <h4>資料預覽（前 10 筆）</h4>
+                    <div class="preview-controls">
+                        <span style="font-size: 12px; color: var(--text-secondary);">顯示欄位：</span>
+                        ${fields.map(field => `
+                            <button class="column-toggle ${visibleColumns.includes(field) ? 'active' : ''}" 
+                                    onclick="toggleColumn('${field}')" 
+                                    title="點擊顯示/隱藏欄位">
+                                ${field}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                ${visibleColumns.map(field => `<th title="${field}">${field}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${previewData.map(row => `
+                                <tr>
+                                    ${visibleColumns.map(field => `
+                                        <td title="${row[field] || ''}">${row[field] || ''}</td>
+                                    `).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            previewContainer.innerHTML = tableHTML;
+        }
+
+        // 切換欄位顯示
+        function toggleColumn(fieldName) {
+            if (visibleColumns.includes(fieldName)) {
+                visibleColumns = visibleColumns.filter(col => col !== fieldName);
+            } else {
+                visibleColumns.push(fieldName);
+            }
+            
+            if (uploadedData.length > 0) {
+                const fields = Object.keys(uploadedData[0] || {});
+                displayDataPreview(uploadedData, fields);
+            }
+        }
+
+        // 更新欄位選擇
+        function updateColumnSelect(fields) {
+            const columnSelect = document.getElementById('columnSelect');
+            columnSelect.innerHTML = '<option value="">請選擇欄位</option>';
+            
+            fields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                columnSelect.appendChild(option);
+            });
+        }
+
+        // 篩選資料
+        function filterData() {
+            const selectedColumn = document.getElementById('columnSelect').value;
+            const selectedCustomerId = document.getElementById('customerSelect').value;
+            
+            if (!selectedColumn || !selectedCustomerId || uploadedData.length === 0) {
+                showNotification('請先上傳檔案並選擇欄位和客戶', 'error');
+                return;
+            }
+            
+            const customers = DataManager.getCustomers();
+            const customer = customers.find(c => c.id == selectedCustomerId);
+            if (!customer) {
+                showNotification('找不到選擇的客戶', 'error');
+                return;
+            }
+            
+            filteredData = uploadedData.filter(row => {
+                const cellValue = row[selectedColumn];
+                return customer.accounts.some(account => 
+                    cellValue && cellValue.toString().includes(account)
+                );
+            });
+            
+            displayFilteredResults();
+        }
+
+        // 顯示篩選結果
+        function displayFilteredResults() {
+            const resultsContainer = document.getElementById('filteredResults');
+            
+            if (filteredData.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="error-message">
+                        沒有找到符合條件的資料
+                    </div>
+                `;
+                return;
+            }
+            
+            const fields = Object.keys(filteredData[0] || {});
+            const displayFields = fields.slice(0, 10);
+            
+            let tableHTML = `
+                <div class="data-preview-header">
+                    <h4>篩選結果（共 ${filteredData.length} 筆）</h4>
+                    <div class="preview-controls">
+                        <span style="font-size: 12px; color: var(--text-secondary);">
+                            ${fields.length > 10 ? `顯示前 10 個欄位，共 ${fields.length} 個` : `共 ${fields.length} 個欄位`}
+                        </span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                ${displayFields.map(field => `<th title="${field}">${field}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredData.map(row => `
+                                <tr>
+                                    ${displayFields.map(field => `
+                                        <td title="${row[field] || ''}">${row[field] || ''}</td>
+                                    `).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            resultsContainer.innerHTML = tableHTML;
+        }
+
+        // 匯出篩選結果
+        window.exportFilteredData = function () {
+            if (!Array.isArray(filteredData) || filteredData.length === 0) {
+                showNotification('⚠️ 沒有可匯出的資料', 'error');
+                return;
+            }
+            try {
+                console.log("[DEBUG] 開始建立工作表與工作簿");
+                const ws = XLSX.utils.json_to_sheet(filteredData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "篩選結果");
+                console.log("[DEBUG] 生成檔案開始");
+                // 改用 writeFile，會自動處理 Blob 及 download 行為
+                XLSX.writeFile(wb, `export_${new Date().toISOString().split('T')[0]}.xlsx`);
+                console.log("[DEBUG] XLSX.writeFile 執行完成");
+                showNotification(`✅ 成功匯出 ${filteredData.length} 筆資料！`, 'success');
+            } catch (err) {
+                console.error('[ERROR] 匯出失敗：', err);
+                showNotification('❌ 匯出失敗：' + err.message, 'error');
+            }
+        };
+
+        // Modal 事件處理
+        window.addEventListener('click', function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // 初始化應用程式
+        window.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            loadCustomers();
+            
+            // 綁定檔案上傳
+            const fileInput = document.getElementById('fileInput');
+            const uploadArea = document.getElementById('uploadArea');
+            
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', handleFileUpload);
+            
+            // 拖拽上傳
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileUpload({ target: { files: files } });
+                }
+            });
+            
+            // 綁定按鈕事件
+            document.getElementById('addCustomerBtn').addEventListener('click', handleAddCustomer);
+            document.getElementById('editCustomerBtn').addEventListener('click', handleEditCustomer);
+        });
+    </script>
+</body>
 </html>

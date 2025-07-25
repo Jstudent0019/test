@@ -862,47 +862,25 @@
 
         // 資料管理函數
         const DataManager = {
-            // 預設客戶資料
-            defaultCustomers: [
-                { 
-                    "name": "BT0037", 
-                    "accounts": ["3000643882", "3000643468", "3000643464", "3000592442", "3000592452", "3000578052", "3000621840", "3000643474", "3000644969", "3000644933", "3000630722", "3000630737", "3000653467", "3000721984", "3000651412", "3000723268", "3000724195", "3000728943", "3000725393", "3000728949", "3000627923", "3000586066", "3000636415", "3000577814", "3000627472", "3000577304", "3000586469", "3000651650"] 
-                }, 
-                { 
-                    "name": "DK0355", 
-                    "accounts": ["hid_sbi691djsioqdx0", "hid_u_6r_se160-nami", "hid_qxask2hxu_uc1kc", "hid_fnjox1xnurip37s", "hid_8dfurjko_1gr3f5", "hid_7o5pp8clx23vo--", "hid_va64xrw9w97x0c0", "hid_v035qpt68hi2shb", "hid_xl9im66htaejrat", "hid_e1o9xquvxf_r9wq", "hid_5_6invfpu5fl6gw", "hid_8zui0z5b4svo-a2", "hid_hsla57_7yp42sor", "hid_p5dbqyzs2_8mmh0", "hid_rt7a61_onjl7xi0", "hid_l4-53kn2eeqwdm7", "hid_3z91n-u_swlavo0", "hid_4arnh84gkf26gp9", "hid_85s7ubvxufa25ca", "hid_e268-h37p9upf89", "hid_irqdf0tqndkinej", "hid_lc7e-a4891z-9cy", "hid_c9j3nn33vk0xm7_", "hid_v197anzwdlvyc91", "hid_ja1a8j52xshu7zr", "hid_b8ag2m-rmqqe1fl", "hid_5-hy__7tkj43b3t", "hid_2_h53h23ww2a7lp", "hid_svmhlhjt74ctnlv", "hid_6mxt93xq2mhotyn", "hid_s2_1kjr8_pbezkc"] 
-                }, 
-                { 
-                    "name": "DK0577", 
-                    "accounts": ["hid_6pesiqee5idgoyd", "hid_cgbcu8c-jn6tb_7", "hid_-dsr2v-6ynt-_ch", "hid_ip59g0rsnzam2h3", "hid_hc0qlz7gz18j1ai", "hid_lq6gaz5_tzj-9r9", "hid_b87-3z7ucsogk49", "hid_u4apep7yihzsc-e", "hid_dmmjmnrwccrhuhl", "hid_3nl5_2mkosnvb34", "hid_4_qjnyb3i7w_vue", "hid_k_h8gp226vppd7s", "hid_yd0e_15jrbobnnu", "hid__njnu41r7c64jqq", "hid_uz1k3glruq6-7qb", "hid_9un73606vpz47qb", "hid_4ic99hp_x3my9wg", "hid_x_pvoibce6_1e92", "hid_y79ud448lenwtzh", "hid_wqev6fjvlahr8z6", "hid_saxm75nnrptj4ju"] 
-                }
-            ],
-
             // 取得客戶資料
             getCustomers: async function() {
                 try {
                     const dbRef = ref(database);
                     const snapshot = await get(child(dbRef, 'customers'));
-                    
                     if (snapshot.exists()) {
                         const data = snapshot.val();
                         return Object.values(data);
                     } else {
-                        // 首次使用，初始化預設資料
-                        const defaultData = this.defaultCustomers.map((customer, index) => ({
-                            id: Date.now() + index,
-                            name: customer.name,
-                            accounts: customer.accounts
-                        }));
-                        await this.saveCustomers(defaultData);
-                        return defaultData;
-                    }
+            // 不再寫入預設，直接回傳空陣列
+                return [];
+                }
                 } catch (error) {
-                    console.error('Error getting customers:', error);
-                    showNotification('❌ 載入資料失敗', 'error');
-                    return [];
+                console.error('Error getting customers:', error);
+            showNotification('❌ 載入資料失敗', 'error');
+                return [];
                 }
             },
+
 
             // 儲存客戶資料
             saveCustomers: async function(customers) {

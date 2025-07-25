@@ -644,27 +644,14 @@
                     </div>
                     <form id="loginForm">
                         <div class="form-group">
-                            <label for="email">電子郵件</label>
-                            <input type="email" id="email" name="email" required autocomplete="email">
+                            <label for="username">帳號</label>
+                            <input type="text" id="username" name="username" required autocomplete="username">
                         </div>
                         <div class="form-group">
                             <label for="password">密碼</label>
                             <input type="password" id="password" name="password" required autocomplete="current-password">
                         </div>
                         <button type="button" class="btn btn-full" onclick="handleLogin()">登入</button>
-                        <button type="button" class="link-button" onclick="showRegisterForm()">沒有帳號？點此註冊</button>
-                    </form>
-                    <form id="registerForm" style="display: none;">
-                        <div class="form-group">
-                            <label for="regEmail">電子郵件</label>
-                            <input type="email" id="regEmail" name="regEmail" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="regPassword">密碼（至少 6 個字元）</label>
-                            <input type="password" id="regPassword" name="regPassword" required minlength="6">
-                        </div>
-                        <button type="button" class="btn btn-full" onclick="handleRegister()">註冊</button>
-                        <button type="button" class="link-button" onclick="showLoginForm()">已有帳號？點此登入</button>
                     </form>
                     <div id="authError" class="error-message" style="display: none;"></div>
                 </div>
@@ -834,7 +821,6 @@
         // Import Firebase functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
         
         // Firebase configuration
         const firebaseConfig = {
@@ -851,7 +837,12 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
-        const auth = getAuth(app);
+
+        // 預設帳號密碼
+        const ADMIN_CREDENTIALS = {
+            username: 'admin',
+            password: '88888888'
+        };
 
         // 全域變數
         let currentUser = null;
@@ -865,7 +856,6 @@
         window.dbRef = ref;
         window.dbGet = get;
         window.dbSet = set;
-        window.auth = auth;
 
         // 資料管理函數
         const DataManager = {
@@ -972,51 +962,42 @@
         window.DataManager = DataManager;
 
         // 身份驗證相關函數
-        window.showLoginForm = function() {
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('registerForm').style.display = 'none';
-            document.getElementById('authError').style.display = 'none';
-        }
-
-        window.showRegisterForm = function() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('registerForm').style.display = 'block';
-            document.getElementById('authError').style.display = 'none';
-        }
-
-        window.handleLogin = async function() {
-            const email = document.getElementById('email').value;
+        window.handleLogin = function() {
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
+            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                currentUser = { username: 'admin' };
+                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                document.getElementById('loginSection').classList.remove('active');
+                document.getElementById('mainSection').classList.add('active');
+                document.getElementById('userEmail').textContent = 'admin';
+                
+                loadCustomers();
+                setupRealtimeSync();
+                
                 showNotification('✅ 登入成功', 'success');
-            } catch (error) {
-                showAuthError(error.message);
+            } else {
+                showAuthError('帳號或密碼錯誤');
             }
         }
 
-        window.handleRegister = async function() {
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                showNotification('✅ 註冊成功', 'success');
-            } catch (error) {
-                showAuthError(error.message);
-            }
-        }
-
-        window.handleLogout = async function() {
-            showConfirm('確認登出', '確定要登出嗎？', async function(confirmed) {
+        window.handleLogout = function() {
+            showConfirm('確認登出', '確定要登出嗎？', function(confirmed) {
                 if (confirmed) {
-                    try {
-                        await signOut(auth);
-                        showNotification('✅ 已登出', 'success');
-                    } catch (error) {
-                        showNotification('❌ 登出失敗', 'error');
-                    }
+                    currentUser = null;
+                    sessionStorage.removeItem('currentUser');
+                    
+                    document.getElementById('loginSection').classList.add('active');
+                    document.getElementById('mainSection').classList.remove('active');
+                    
+                    // 清空表單
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    document.getElementById('authError').style.display = 'none';
+                    
+                    showNotification('✅ 已登出', 'success');
                 }
             });
         }
@@ -1027,21 +1008,18 @@
             errorElement.style.display = 'block';
         }
 
-        // 監聽身份驗證狀態
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
+        // 檢查登入狀態
+        function checkLoginStatus() {
+            const savedUser = sessionStorage.getItem('currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
                 document.getElementById('loginSection').classList.remove('active');
                 document.getElementById('mainSection').classList.add('active');
-                document.getElementById('userEmail').textContent = user.email;
+                document.getElementById('userEmail').textContent = currentUser.username;
                 loadCustomers();
                 setupRealtimeSync();
-            } else {
-                currentUser = null;
-                document.getElementById('loginSection').classList.add('active');
-                document.getElementById('mainSection').classList.remove('active');
             }
-        });
+        }
 
         // 即時同步
         function setupRealtimeSync() {
@@ -1381,7 +1359,7 @@
                             name: customer.name,
                             accounts: customer.accounts,
                             deleteTime: new Date().toLocaleString('zh-TW'),
-                            deletedBy: currentUser ? currentUser.email : 'unknown'
+                            deletedBy: currentUser ? currentUser.username : 'unknown'
                         };
                         
                         const deletedCustomers = await DataManager.getDeletedCustomers();
@@ -1469,7 +1447,7 @@
                 timestamp: timestamp,
                 action: action,
                 details: details,
-                user: currentUser ? currentUser.email : 'unknown'
+                user: currentUser ? currentUser.username : 'unknown'
             };
             
             editLogs[customerId].unshift(logEntry);
@@ -1735,6 +1713,7 @@
         // 初始化應用程式
         window.addEventListener('DOMContentLoaded', function() {
             initTheme();
+            checkLoginStatus(); // 檢查登入狀態
             
             // 綁定檔案上傳
             const fileInput = document.getElementById('fileInput');
@@ -1769,6 +1748,19 @@
             // 綁定按鈕事件
             document.getElementById('addCustomerBtn').addEventListener('click', handleAddCustomer);
             document.getElementById('editCustomerBtn').addEventListener('click', handleEditCustomer);
+            
+            // Enter 鍵快速登入
+            document.getElementById('username').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('password').focus();
+                }
+            });
+            
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleLogin();
+                }
+            });
         });
     </script>
 </body>

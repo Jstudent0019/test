@@ -72,6 +72,13 @@
             width: 100%;
             max-width: 400px;
             border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .login-theme-toggle {
+            position: absolute;
+            right: 20px;
+            top: 20px;
         }
 
         .header {
@@ -93,6 +100,7 @@
 
         .form-group {
             margin-bottom: 24px;
+            position: relative;
         }
 
         .form-group label {
@@ -122,6 +130,22 @@
             outline: none;
             border-color: var(--accent-color);
             box-shadow: 0 0 0 3px rgba(73, 80, 87, 0.1);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 38px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-secondary);
+            padding: 4px;
+        }
+
+        .password-toggle:hover {
+            color: var(--text-primary);
         }
 
         .btn {
@@ -638,6 +662,11 @@
         <div id="loginSection" class="section active">
             <div class="login-container">
                 <div class="login-card">
+                    <div class="login-theme-toggle">
+                        <button class="theme-toggle" id="loginThemeToggle" title="切換主題">
+                            <span id="loginThemeIcon">🌙</span>
+                        </button>
+                    </div>
                     <div class="header">
                         <h1>輕鬆篩</h1>
                         <p>客戶資料管理系統</p>
@@ -650,8 +679,11 @@
                         <div class="form-group">
                             <label for="password">密碼</label>
                             <input type="password" id="password" name="password" required autocomplete="current-password">
+                            <button type="button" class="password-toggle" id="passwordToggle" title="顯示/隱藏密碼">
+                                👁️
+                            </button>
                         </div>
-                        <button type="button" class="btn btn-full" onclick="handleLogin()">登入</button>
+                        <button type="submit" class="btn btn-full">登入</button>
                     </form>
                     <div id="authError" class="error-message" style="display: none;"></div>
                 </div>
@@ -664,11 +696,11 @@
                 <h1>輕鬆篩</h1>
                 <div class="nav-buttons">
                     <span class="user-info" id="userEmail"></span>
-                    <button class="theme-toggle" onclick="toggleTheme()" title="切換主題">
-                        <span id="themeIcon">🌙</span>
+                    <button class="theme-toggle" id="mainThemeToggle" title="切換主題">
+                        <span id="mainThemeIcon">🌙</span>
                     </button>
-                    <button class="btn btn-small" onclick="showEditHistoryModal()">編輯紀錄</button>
-                    <button class="btn btn-small" onclick="handleLogout()">登出</button>
+                    <button class="btn btn-small" id="editHistoryBtn">編輯紀錄</button>
+                    <button class="btn btn-small" id="logoutBtn">登出</button>
                 </div>
             </div>
 
@@ -677,7 +709,7 @@
                 <div class="sidebar">
                     <div class="sidebar-header">
                         <div class="sidebar-title">客戶列表</div>
-                        <button class="btn btn-small" onclick="showAddCustomerModal()">新增</button>
+                        <button class="btn btn-small" id="addCustomerBtn">新增</button>
                     </div>
                     <div id="customersList" class="customer-list"></div>
                     
@@ -685,9 +717,9 @@
                     <div id="deleteLogSection" class="delete-log" style="display: none;">
                         <div class="delete-log-title">刪除紀錄</div>
                         <div id="deleteLogEntries"></div>
-                        <button class="btn btn-small btn-secondary" onclick="toggleDeleteLog()" style="margin-top: 8px;">隱藏紀錄</button>
+                        <button class="btn btn-small btn-secondary" id="hideDeleteLogBtn" style="margin-top: 8px;">隱藏紀錄</button>
                     </div>
-                    <button class="btn btn-small btn-secondary" onclick="toggleDeleteLog()" id="showDeleteLogBtn" style="margin-top: 12px;">查看刪除紀錄</button>
+                    <button class="btn btn-small btn-secondary" id="showDeleteLogBtn" style="margin-top: 12px;">查看刪除紀錄</button>
                 </div>
 
                 <!-- 主要內容區 -->
@@ -726,8 +758,8 @@
                                     </div>
                                 </div>
                                 <div style="display: flex; gap: 12px;">
-                                    <button class="btn" onclick="filterData()">開始篩選</button>
-                                    <button type="button" class="btn btn-secondary" onclick="window.exportFilteredData()">匯出結果</button>
+                                    <button class="btn" id="filterDataBtn">開始篩選</button>
+                                    <button type="button" class="btn btn-secondary" id="exportDataBtn">匯出結果</button>
                                 </div>
                             </div>
                             <div id="filteredResults"></div>
@@ -752,8 +784,8 @@
                         <textarea id="customerAccounts" rows="8" placeholder="請輸入帳號，每行一個"></textarea>
                     </div>
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" class="btn" id="addCustomerBtn">新增</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                        <button type="button" class="btn" id="addCustomerSubmitBtn">新增</button>
+                        <button type="button" class="btn btn-secondary modal-close">取消</button>
                     </div>
                 </form>
             </div>
@@ -780,8 +812,8 @@
                         </div>
                     </div>
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" class="btn" id="editCustomerBtn">更新</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                        <button type="button" class="btn" id="editCustomerSubmitBtn">更新</button>
+                        <button type="button" class="btn btn-secondary modal-close">取消</button>
                     </div>
                 </form>
             </div>
@@ -799,7 +831,7 @@
                 </div>
                 <div id="customerEditHistory" style="max-height: 400px; overflow-y: auto; margin-top: 16px;"></div>
                 <div style="display: flex; gap: 12px; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">關閉</button>
+                    <button type="button" class="btn btn-secondary modal-close">關閉</button>
                 </div>
             </div>
         </div>
@@ -860,6 +892,58 @@
         window.dbGet = get;
         window.dbSet = set;
 
+        // 登入狀態管理函數
+        const AUTH_EXPIRY_HOURS = 12;
+
+        function saveLogin(user) {
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            localStorage.setItem('loginTime', Date.now().toString());
+        }
+
+        function removeLogin() {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('loginTime');
+        }
+
+        function checkLoginExpiry() {
+            const loginTime = localStorage.getItem('loginTime');
+            if (!loginTime) return false;
+            
+            const now = Date.now();
+            const elapsed = now - parseInt(loginTime);
+            const expiryTime = AUTH_EXPIRY_HOURS * 60 * 60 * 1000;
+            
+            return elapsed < expiryTime;
+        }
+
+        function checkLoginStatus() {
+            const savedUser = localStorage.getItem('currentUser');
+            
+            if (savedUser && checkLoginExpiry()) {
+                currentUser = JSON.parse(savedUser);
+                showMain();
+            } else {
+                removeLogin();
+                showLogin();
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginSection').classList.add('active');
+            document.getElementById('mainSection').classList.remove('active');
+            document.getElementById('authError').style.display = 'none';
+            document.getElementById('password').value = '';
+        }
+
+        function showMain() {
+            document.getElementById('loginSection').classList.remove('active');
+            document.getElementById('mainSection').classList.add('active');
+            document.getElementById('userEmail').textContent = currentUser.username;
+            
+            loadCustomers();
+            setupRealtimeSync();
+        }
+
         // 資料管理函數
         const DataManager = {
             // 取得客戶資料
@@ -871,16 +955,14 @@
                         const data = snapshot.val();
                         return Object.values(data);
                     } else {
-            // 不再寫入預設，直接回傳空陣列
-                return [];
-                }
+                        return [];
+                    }
                 } catch (error) {
-                console.error('Error getting customers:', error);
-            showNotification('❌ 載入資料失敗', 'error');
-                return [];
+                    console.error('Error getting customers:', error);
+                    showNotification('❌ 載入資料失敗', 'error');
+                    return [];
                 }
             },
-
 
             // 儲存客戶資料
             saveCustomers: async function(customers) {
@@ -943,21 +1025,16 @@
         window.DataManager = DataManager;
 
         // 身份驗證相關函數
-        window.handleLogin = function() {
+        window.handleLogin = function(e) {
+            if (e) e.preventDefault();
+            
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
             if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-                currentUser = { username: 'admin' };
-                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                
-                document.getElementById('loginSection').classList.remove('active');
-                document.getElementById('mainSection').classList.add('active');
-                document.getElementById('userEmail').textContent = 'admin';
-                
-                loadCustomers();
-                setupRealtimeSync();
-                
+                currentUser = { username: username };
+                saveLogin(currentUser);
+                showMain();
                 showNotification('✅ 登入成功', 'success');
             } else {
                 showAuthError('帳號或密碼錯誤');
@@ -968,16 +1045,8 @@
             showConfirm('確認登出', '確定要登出嗎？', function(confirmed) {
                 if (confirmed) {
                     currentUser = null;
-                    sessionStorage.removeItem('currentUser');
-                    
-                    document.getElementById('loginSection').classList.add('active');
-                    document.getElementById('mainSection').classList.remove('active');
-                    
-                    // 清空表單
-                    document.getElementById('username').value = '';
-                    document.getElementById('password').value = '';
-                    document.getElementById('authError').style.display = 'none';
-                    
+                    removeLogin();
+                    showLogin();
                     showNotification('✅ 已登出', 'success');
                 }
             });
@@ -987,19 +1056,6 @@
             const errorElement = document.getElementById('authError');
             errorElement.textContent = message;
             errorElement.style.display = 'block';
-        }
-
-        // 檢查登入狀態
-        function checkLoginStatus() {
-            const savedUser = sessionStorage.getItem('currentUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                document.getElementById('loginSection').classList.remove('active');
-                document.getElementById('mainSection').classList.add('active');
-                document.getElementById('userEmail').textContent = currentUser.username;
-                loadCustomers();
-                setupRealtimeSync();
-            }
         }
 
         // 即時同步
@@ -1023,15 +1079,32 @@
             });
         }
 
-        // 其他全域函數
+        // 主題切換函數
         window.toggleTheme = function() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             
             document.documentElement.setAttribute('data-theme', newTheme);
-            document.getElementById('themeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            
+            // 更新所有主題圖示
+            document.getElementById('loginThemeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+            document.getElementById('mainThemeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
             
             localStorage.setItem('theme', newTheme);
+        }
+
+        window.initTheme = function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            // 初始化所有主題圖示
+            const icons = ['loginThemeIcon', 'mainThemeIcon'];
+            icons.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+                }
+            });
         }
 
         window.sortCustomers = function(customers) {
@@ -1063,14 +1136,6 @@
             });
         }
 
-        window.initTheme = function() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            if (document.getElementById('themeIcon')) {
-                document.getElementById('themeIcon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-            }
-        }
-
         window.loadCustomers = async function() {
             const customersList = document.getElementById('customersList');
             customersList.innerHTML = '<div class="loading">載入中...</div>';
@@ -1081,7 +1146,7 @@
             customersList.innerHTML = '';
             
             if (sortedCustomers.length === 0) {
-                customersList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">載入預設客戶資料中...</div>';
+                customersList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">暫無客戶資料</div>';
             } else {
                 sortedCustomers.forEach(customer => {
                     const customerItem = document.createElement('div');
@@ -1090,8 +1155,8 @@
                         <div class="customer-name">${customer.name}</div>
                         <div class="customer-count">${customer.accounts.length} 個帳號</div>
                         <div class="customer-actions">
-                            <button class="btn btn-small btn-secondary" onclick="editCustomer(${customer.id})">編輯</button>
-                            <button class="btn btn-small btn-danger" onclick="window.deleteCustomer(${customer.id})">刪除</button>
+                            <button class="btn btn-small btn-secondary customer-edit-btn" data-id="${customer.id}">編輯</button>
+                            <button class="btn btn-small btn-danger customer-delete-btn" data-id="${customer.id}">刪除</button>
                         </div>
                     `;
                     customersList.appendChild(customerItem);
@@ -1137,15 +1202,6 @@
         window.showEditHistoryModal = function() {
             updateHistoryCustomerSelect();
             document.getElementById('editHistoryModal').style.display = 'block';
-            
-            document.getElementById('historyCustomerSelect').onchange = async function() {
-                const customerId = this.value;
-                if (customerId) {
-                    await displayFullEditHistory(parseInt(customerId));
-                } else {
-                    document.getElementById('customerEditHistory').innerHTML = '';
-                }
-            };
         }
 
         window.displayFullEditHistory = async function(customerId) {
@@ -1225,9 +1281,12 @@
             yesBtn.addEventListener('click', handleYes);
             noBtn.addEventListener('click', handleNo);
         }
-        const accounts = accountsText.split('\n')
-          .filter(account => account.trim())
-          .map(account => normalizeAccount(account));
+
+        // 正規化帳號函數
+        function normalizeAccount(account) {
+            return account.trim().toLowerCase();
+        }
+
         // 取得所有現有帳號（排除空字串）
         async function getAllAccounts() {
             const customers = await DataManager.getCustomers();
@@ -1239,6 +1298,7 @@
             });
             return accounts;
         }
+
         window.handleAddCustomer = async function() {
             const name = document.getElementById('customerName').value.trim();
             const accountsText = document.getElementById('customerAccounts').value;
@@ -1246,26 +1306,27 @@
                 .filter(account => account.trim())
                 .map(account => account.trim());
 
-                if (!name) {
-                    showNotification('請輸入客戶名稱', 'error');
+            if (!name) {
+                showNotification('請輸入客戶名稱', 'error');
                 return false;
-                }
+            }
 
             // 檢查帳號重複
             const allAccounts = await getAllAccounts();
-            const duplicateAccounts = accounts.filter(a => allAccounts.includes(a));
-                if (duplicateAccounts.length > 0) {
-                    showNotification('有重複帳號：' + duplicateAccounts.join(', '), 'error');
+            const normalizedNewAccounts = accounts.map(normalizeAccount);
+            const duplicateAccounts = accounts.filter((a, i) => allAccounts.includes(normalizedNewAccounts[i]));
+            
+            if (duplicateAccounts.length > 0) {
+                showNotification('有重複帳號：' + duplicateAccounts.join(', '), 'error');
                 return false;
-                }
+            }
 
-            // ... 下面維持原本的新增流程
             const customers = await DataManager.getCustomers();
             const newCustomer = {
                 id: Date.now(),
                 name: name,
                 accounts: accounts
-                };
+            };
 
             customers.push(newCustomer);
             await DataManager.saveCustomers(customers);
@@ -1547,7 +1608,7 @@
                         <span style="font-size: 12px; color: var(--text-secondary);">顯示欄位：</span>
                         ${fields.map(field => `
                             <button class="column-toggle ${visibleColumns.includes(field) ? 'active' : ''}" 
-                                    onclick="toggleColumn('${field}')" 
+                                    data-field="${field}" 
                                     title="點擊顯示/隱藏欄位">
                                 ${field}
                             </button>
@@ -1714,9 +1775,77 @@
         // 初始化應用程式
         window.addEventListener('DOMContentLoaded', function() {
             initTheme();
-            checkLoginStatus(); // 檢查登入狀態
+            checkLoginStatus();
             
-            // 綁定檔案上傳
+            // 綁定登入相關事件
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // 密碼顯示/隱藏
+            document.getElementById('passwordToggle').addEventListener('click', function() {
+                const passwordInput = document.getElementById('password');
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    this.textContent = '🙈';
+                } else {
+                    passwordInput.type = 'password';
+                    this.textContent = '👁️';
+                }
+            });
+            
+            // 主題切換按鈕
+            document.getElementById('loginThemeToggle').addEventListener('click', toggleTheme);
+            document.getElementById('mainThemeToggle').addEventListener('click', toggleTheme);
+            
+            // 主頁面按鈕事件
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            document.getElementById('editHistoryBtn').addEventListener('click', showEditHistoryModal);
+            document.getElementById('addCustomerBtn').addEventListener('click', showAddCustomerModal);
+            document.getElementById('showDeleteLogBtn').addEventListener('click', toggleDeleteLog);
+            document.getElementById('hideDeleteLogBtn').addEventListener('click', toggleDeleteLog);
+            
+            // 篩選相關按鈕
+            document.getElementById('filterDataBtn').addEventListener('click', filterData);
+            document.getElementById('exportDataBtn').addEventListener('click', exportFilteredData);
+            
+            // Modal 按鈕事件
+            document.getElementById('addCustomerSubmitBtn').addEventListener('click', handleAddCustomer);
+            document.getElementById('editCustomerSubmitBtn').addEventListener('click', handleEditCustomer);
+            
+            // Modal 關閉按鈕
+            document.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', closeModal);
+            });
+            
+            // 客戶列表動態事件綁定
+            document.getElementById('customersList').addEventListener('click', function(e) {
+                if (e.target.classList.contains('customer-edit-btn')) {
+                    const customerId = parseInt(e.target.getAttribute('data-id'));
+                    editCustomer(customerId);
+                } else if (e.target.classList.contains('customer-delete-btn')) {
+                    const customerId = parseInt(e.target.getAttribute('data-id'));
+                    deleteCustomer(customerId);
+                }
+            });
+            
+            // 欄位切換按鈕動態事件綁定
+            document.getElementById('dataPreview').addEventListener('click', function(e) {
+                if (e.target.classList.contains('column-toggle')) {
+                    const fieldName = e.target.getAttribute('data-field');
+                    toggleColumn(fieldName);
+                }
+            });
+            
+            // 編輯紀錄選擇器事件
+            document.getElementById('historyCustomerSelect').addEventListener('change', async function() {
+                const customerId = this.value;
+                if (customerId) {
+                    await displayFullEditHistory(parseInt(customerId));
+                } else {
+                    document.getElementById('customerEditHistory').innerHTML = '';
+                }
+            });
+            
+            // 檔案上傳
             const fileInput = document.getElementById('fileInput');
             const uploadArea = document.getElementById('uploadArea');
             
@@ -1746,19 +1875,17 @@
                 }
             });
             
-            // 綁定按鈕事件
-            document.getElementById('addCustomerBtn').addEventListener('click', handleAddCustomer);
-            document.getElementById('editCustomerBtn').addEventListener('click', handleEditCustomer);
-            
-            // Enter 鍵快速登入
+            // Enter 鍵快速操作
             document.getElementById('username').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
+                    e.preventDefault();
                     document.getElementById('password').focus();
                 }
             });
             
             document.getElementById('password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
+                    e.preventDefault();
                     handleLogin();
                 }
             });

@@ -1225,6 +1225,17 @@
             yesBtn.addEventListener('click', handleYes);
             noBtn.addEventListener('click', handleNo);
         }
+        // 取得所有現有帳號（排除空字串）
+        async function getAllAccounts() {
+            const customers = await DataManager.getCustomers();
+            let accounts = [];
+            customers.forEach(c => {
+                if (Array.isArray(c.accounts)) {
+                    accounts = accounts.concat(c.accounts.filter(a => a && a.trim()));
+                }
+            });
+            return accounts;
+        }
 
         window.handleAddCustomer = async function() {
             const name = document.getElementById('customerName').value.trim();
@@ -1232,33 +1243,40 @@
             const accounts = accountsText.split('\n')
                 .filter(account => account.trim())
                 .map(account => account.trim());
-            
-            if (!name) {
-                showNotification('請輸入客戶名稱', 'error');
+
+                if (!name) {
+                    showNotification('請輸入客戶名稱', 'error');
                 return false;
-            }
-            
+                }
+
+            // 檢查帳號重複
+            const allAccounts = await getAllAccounts();
+            const duplicateAccounts = accounts.filter(a => allAccounts.includes(a));
+                if (duplicateAccounts.length > 0) {
+                    showNotification('有重複帳號：' + duplicateAccounts.join(', '), 'error');
+                return false;
+                }
+
+            // ... 下面維持原本的新增流程
             const customers = await DataManager.getCustomers();
             const newCustomer = {
                 id: Date.now(),
                 name: name,
                 accounts: accounts
-            };
-            
+                };
+
             customers.push(newCustomer);
             await DataManager.saveCustomers(customers);
-            
             await addEditLog(newCustomer.id, 'add', `新增客戶: ${name}`);
-            
+
             for (const account of accounts) {
                 await addEditLog(newCustomer.id, 'add', `新增帳號: ${account}`);
             }
-            
+
             closeModal();
             document.getElementById('addCustomerForm').reset();
-            
+
             showNotification(`成功新增客戶「${name}」`, 'success');
-            
             return false;
         }
 

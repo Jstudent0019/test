@@ -1225,18 +1225,20 @@
             yesBtn.addEventListener('click', handleYes);
             noBtn.addEventListener('click', handleNo);
         }
+        const accounts = accountsText.split('\n')
+          .filter(account => account.trim())
+          .map(account => normalizeAccount(account));
         // 取得所有現有帳號（排除空字串）
         async function getAllAccounts() {
             const customers = await DataManager.getCustomers();
             let accounts = [];
             customers.forEach(c => {
                 if (Array.isArray(c.accounts)) {
-                    accounts = accounts.concat(c.accounts.filter(a => a && a.trim()));
+                    accounts = accounts.concat(c.accounts.filter(a => a && a.trim()).map(normalizeAccount));
                 }
             });
             return accounts;
         }
-
         window.handleAddCustomer = async function() {
             const name = document.getElementById('customerName').value.trim();
             const accountsText = document.getElementById('customerAccounts').value;

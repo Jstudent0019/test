@@ -882,6 +882,7 @@
         // 全域變數
         let currentUser = null;
         let uploadedData = [];
+        let originalHeaders = [];
         let filteredData = [];
         let editingCustomerId = null;
         let visibleColumns = [];
@@ -1563,6 +1564,7 @@
                         skipEmptyLines: true
                     });
                     uploadedData = results.data;
+                    originalHeaders = results.meta.fields;
                     displayDataPreview(results.data, results.meta.fields);
                     updateColumnSelect(results.meta.fields);
                 };
@@ -1577,6 +1579,7 @@
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
                     uploadedData = jsonData;
                     const fields = Object.keys(jsonData[0] || {});
+                    originalHeaders = fields;
                     displayDataPreview(jsonData, fields);
                     updateColumnSelect(fields);
                 };
@@ -1701,7 +1704,7 @@
                 return;
             }
             
-            const fields = Object.keys(filteredData[0] || {});
+            const fields = originalHeaders.length > 0 ? originalHeaders : Object.keys(filteredData[0] || {});
             const displayFields = fields.slice(0, 10);
             
             let tableHTML = `
@@ -1743,6 +1746,9 @@
             }
             try {
                 console.log("[DEBUG] 開始建立工作表與工作簿");
+
+                const ws = XLSX.utils.json_to_sheet(filteredData, { header: originalHeaders });
+                
                 const ws = XLSX.utils.json_to_sheet(filteredData);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "篩選結果");

@@ -680,6 +680,26 @@
 </head>
 
 <body>
+    <nav
+        style="background: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 0 20px; margin-bottom: 20px; display: flex; gap: 20px; justify-content: center;">
+        <button onclick="showTab('tab-filter')" id="btn-tab-filter"
+            style="padding: 15px 20px; border: none; background: none; color: var(--text-primary); cursor: pointer; border-bottom: 3px solid var(--text-primary); font-weight: bold;">🔍
+            輕鬆篩系統</button>
+        <button onclick="showTab('tab-merger')" id="btn-tab-merger"
+            style="padding: 15px 20px; border: none; background: none; color: var(--text-secondary); cursor: pointer; border-bottom: 3px solid transparent;">📦
+            數據合併工具</button>
+    </nav>
+
+    <div id="mainContent" class="container">
+        <div id="tab-filter" class="tab-content">
+            <div class="card">
+            </div>
+        </div>
+
+        <div id="tab-merger" class="tab-content" style="display: none;">
+        </div>
+    </div>
+
     <div class="container">
         <!-- 登入頁面 -->
         <div id="loginSection" class="section active">

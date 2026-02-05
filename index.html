@@ -2075,6 +2075,35 @@
                     }
                 }
             });
+            function showTab(tabId) {
+                // 1. 隱藏所有分頁內容
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.style.display = 'none';
+                });
+
+                // 2. 顯示點選的分頁
+                document.getElementById(tabId).style.display = 'block';
+
+                // 3. 更新按鈕樣式 (切換底色或底線)
+                const btnFilter = document.getElementById('btn-tab-filter');
+                const btnMerger = document.getElementById('btn-tab-merger');
+
+                if (tabId === 'tab-filter') {
+                    btnFilter.style.borderBottom = '3px solid var(--text-primary)';
+                    btnFilter.style.color = 'var(--text-primary)';
+                    btnFilter.style.fontWeight = 'bold';
+                    btnMerger.style.borderBottom = '3px solid transparent';
+                    btnMerger.style.color = 'var(--text-secondary)';
+                    btnMerger.style.fontWeight = 'normal';
+                } else {
+                    btnMerger.style.borderBottom = '3px solid var(--text-primary)';
+                    btnMerger.style.color = 'var(--text-primary)';
+                    btnMerger.style.fontWeight = 'bold';
+                    btnFilter.style.borderBottom = '3px solid transparent';
+                    btnFilter.style.color = 'var(--text-secondary)';
+                    btnFilter.style.fontWeight = 'normal';
+                }
+            }
         </script>
 </body>
 

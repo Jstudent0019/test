@@ -676,27 +676,68 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* 導覽列樣式 */
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+            font-weight: bold;
+            border-bottom: 3px solid var(--text-primary);
+        }
+
+        .tab-content {
+            display: none;
+            /* 預設隱藏所有內容 */
+        }
+
+        .tab-content.active {
+            display: block;
+            /* 只顯示 active 的內容 */
+        }
     </style>
 </head>
 
 <body>
-    <nav
-        style="background: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 0 20px; margin-bottom: 20px; display: flex; gap: 20px; justify-content: center;">
-        <button onclick="showTab('tab-filter')" id="btn-tab-filter"
-            style="padding: 15px 20px; border: none; background: none; color: var(--text-primary); cursor: pointer; border-bottom: 3px solid var(--text-primary); font-weight: bold;">🔍
-            輕鬆篩系統</button>
-        <button onclick="showTab('tab-merger')" id="btn-tab-merger"
-            style="padding: 15px 20px; border: none; background: none; color: var(--text-secondary); cursor: pointer; border-bottom: 3px solid transparent;">📦
-            數據合併工具</button>
+    <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="showTab('tab-filter', this)">🔍 輕鬆篩系統</button>
+        <button class="tab-btn" onclick="showTab('tab-merger', this)">📦 數據合併工具</button>
     </nav>
 
-    <div id="mainContent" class="container">
-        <div id="tab-filter" class="tab-content">
+    <div id="mainContent" class="container" style="padding-top: 20px;">
+
+        <div id="tab-filter" class="tab-content active">
             <div class="card">
             </div>
         </div>
 
-        <div id="tab-merger" class="tab-content" style="display: none;">
+        <div id="tab-merger" class="tab-content">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="margin: 0;">📦 專業數據合併工具</h3>
+                    <button onclick="resetMerger()"
+                        style="padding: 5px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;">清空清單</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2075,34 +2116,31 @@
                     }
                 }
             });
-            function showTab(tabId) {
-                // 1. 隱藏所有分頁內容
-                document.querySelectorAll('.tab-content').forEach(content => {
-                    content.style.display = 'none';
-                });
-
-                // 2. 顯示點選的分頁
-                document.getElementById(tabId).style.display = 'block';
-
-                // 3. 更新按鈕樣式 (切換底色或底線)
-                const btnFilter = document.getElementById('btn-tab-filter');
-                const btnMerger = document.getElementById('btn-tab-merger');
-
-                if (tabId === 'tab-filter') {
-                    btnFilter.style.borderBottom = '3px solid var(--text-primary)';
-                    btnFilter.style.color = 'var(--text-primary)';
-                    btnFilter.style.fontWeight = 'bold';
-                    btnMerger.style.borderBottom = '3px solid transparent';
-                    btnMerger.style.color = 'var(--text-secondary)';
-                    btnMerger.style.fontWeight = 'normal';
-                } else {
-                    btnMerger.style.borderBottom = '3px solid var(--text-primary)';
-                    btnMerger.style.color = 'var(--text-primary)';
-                    btnMerger.style.fontWeight = 'bold';
-                    btnFilter.style.borderBottom = '3px solid transparent';
-                    btnFilter.style.color = 'var(--text-secondary)';
-                    btnFilter.style.fontWeight = 'normal';
+            function showTab(tabId, btnElement) {
+                // 1. 隱藏所有分頁
+                const contents = document.getElementsByClassName('tab-content');
+                for (let content of contents) {
+                    content.classList.remove('active');
                 }
+
+                // 2. 移除所有按鈕的 active 樣式
+                const buttons = document.getElementsByClassName('tab-btn');
+                for (let btn of buttons) {
+                    btn.classList.remove('active');
+                }
+
+                // 3. 顯示點選的分頁並啟用按鈕樣式
+                document.getElementById(tabId).classList.add('active');
+                btnElement.classList.add('active');
+            }
+
+            // 您的重置功能
+            function resetMerger() {
+                document.getElementById('mergeFileInput').value = "";
+                const fileCount = document.getElementById('file-count');
+                if (fileCount) fileCount.innerText = "";
+                const status = document.getElementById('merge-status');
+                if (status) status.innerText = "清單已清空";
             }
         </script>
 </body>

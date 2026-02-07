@@ -2018,55 +2018,92 @@
             }
         };
 
-        // 合併工具專用函式 (避免與原本 handleFileUpload 衝突)
-        window.updateMergeCount = function () {
+        let currentMergeData = []; // 暫存讀取的資料供預覽
+
+        window.prepareMergePreview = async function () {
             const files = document.getElementById('mergeFileInput').files;
-            document.getElementById('merge-file-display').innerText = `已選取 ${files.length} 個檔案`;
+            const display = document.getElementById('merge-file-display');
+            const configArea = document.getElementById('multi-sheet-config');
+            const colSelect = document.getElementById('sheetNameColumn');
+
+            if (files.length === 0) return;
+            display.innerText = `已選取 ${files.length} 個檔案`;
+
+            currentMergeData = [];
+            const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '编号', 'SN', '電話', 'UIN', 'name', 'AccountId', 'User ID'];
+
+            for (let file of files) {
+                const data = await file.arrayBuffer();
+                const tempWB = XLSX.read(data, { type: 'array' });
+                const raw = XLSX.utils.sheet_to_json(tempWB.Sheets[tempWB.SheetNames[0]], { defval: "" });
+
+                // 強制處理精度問題
+                const processed = raw.map(row => {
+                    let newRow = {};
+                    for (let key in row) {
+                        const isId = idKeywords.some(k => String(key).includes(k));
+                        newRow[key] = isId ? String(row[key]).trim() : row[key];
+                    }
+                    return newRow;
+                });
+                currentMergeData.push({ fileName: file.name, data: processed });
+            }
+
+            // 更新欄位選擇器 (取第一個檔案的欄位)
+            const cols = Object.keys(currentMergeData[0].data[0] || {});
+            colSelect.innerHTML = '<option value="FILENAME">使用原始檔名</option>' +
+                cols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            configArea.style.display = 'block';
+            generateMergePreview();
         };
 
-        window.resetMergerTool = function () {
-            document.getElementById('mergeFileInput').value = '';
-            document.getElementById('merge-file-display').innerText = '點擊或拖拽多個檔案至此';
-            document.getElementById('merge-status-msg').innerText = '';
+        window.generateMergePreview = function () {
+            const colName = document.getElementById('sheetNameColumn').value;
+            const previewDiv = document.getElementById('merge-preview-table');
+            let usedNames = {};
+            let html = '<table style="width:100%; border-collapse: collapse;"><tr><th style="border:1px solid #ddd; padding:4px;">原始檔案</th><th style="border:1px solid #ddd; padding:4px;">最終分頁名</th></tr>';
+
+            currentMergeData.forEach(item => {
+                let rawName = colName === 'FILENAME' ? item.fileName.split('.')[0] : String(item.data[0][colName] || "Unknown");
+                // Excel 限制清理
+                let cleanName = rawName.replace(/[\[\]\:\*\?\/\\\\]/g, "").substring(0, 25).trim() || "Sheet";
+
+                // 名稱去重邏輯：解決 "already exists" 報錯
+                if (usedNames[cleanName] !== undefined) {
+                    usedNames[cleanName]++;
+                    cleanName = `${cleanName}_${usedNames[cleanName]}`;
+                } else {
+                    usedNames[cleanName] = 0;
+                }
+                item.finalSheetName = cleanName;
+                html += `<tr><td style="border:1px solid #ddd; padding:4px;">${item.fileName}</td><td style="border:1px solid #ddd; padding:4px;">${cleanName}</td></tr>`;
+            });
+            html += '</table>';
+            previewDiv.innerHTML = html;
         };
 
         window.executeMerge = async function (mode) {
-            const files = document.getElementById('mergeFileInput').files;
             const status = document.getElementById('merge-status-msg');
-            if (files.length === 0) return alert("請先選擇檔案");
+            if (currentMergeData.length === 0) return alert("請先選擇檔案");
 
-            status.innerText = "處理中...";
+            status.innerText = "⌛ 處理中...";
             const workbook = XLSX.utils.book_new();
-            let combinedData = [];
-            const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '编号', 'SN', '電話', 'UIN', 'name', 'AccountId', 'User ID'];
 
             try {
-                for (let file of files) {
-                    const data = await file.arrayBuffer();
-                    const tempWB = XLSX.read(data, { type: 'array' });
-                    const rawData = XLSX.utils.sheet_to_json(tempWB.Sheets[tempWB.SheetNames[0]], { defval: "" });
-
-                    const processed = rawData.map(row => {
-                        let newRow = {};
-                        for (let key in row) {
-                            const isId = idKeywords.some(k => key.includes(k));
-                            newRow[key] = isId ? String(row[key]).trim() : row[key];
-                        }
-                        return newRow;
+                if (mode === 'single') {
+                    let combined = currentMergeData.reduce((acc, curr) => acc.concat(curr.data), []);
+                    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(combined), "MergedData");
+                } else {
+                    currentMergeData.forEach(item => {
+                        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(item.data), item.finalSheetName);
                     });
-
-                    if (mode === 'single') {
-                        combinedData = combinedData.concat(processed);
-                    } else {
-                        let name = file.name.split('.')[0].substring(0, 30);
-                        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(processed), name);
-                    }
                 }
-                if (mode === 'single') XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(combinedData), "Merged");
                 XLSX.writeFile(workbook, `Merged_${Date.now()}.xlsx`);
-                status.innerText = "✅ 合併成功";
+                status.innerText = "✅ 合併完成並已下載";
             } catch (e) {
-                status.innerText = "❌ 錯誤：" + e.message;
+                status.innerText = "❌ 失敗：" + e.message;
+                console.error(e);
             }
         };
     </script>

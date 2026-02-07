@@ -2038,6 +2038,7 @@
             if (files.length === 0) return alert("請先選擇檔案");
 
             status.innerText = "⌛ 正在讀取並解析檔案，請稍候...";
+            status.style.color = "var(--text-primary)";
             currentMergeData = [];
 
             try {
@@ -2046,8 +2047,7 @@
                     const tempWB = XLSX.read(data, { type: 'array' });
                     const raw = XLSX.utils.sheet_to_json(tempWB.Sheets[tempWB.SheetNames[0]], { defval: "" });
 
-                    // 處理帳號精度
-                    const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '编号', 'SN', '電話', 'UIN', 'name', 'AccountId', 'User ID'];
+                    const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '電話'];
                     const processed = raw.map(row => {
                         let newRow = {};
                         for (let key in row) {
@@ -2059,20 +2059,25 @@
                     currentMergeData.push({ fileName: file.name, data: processed });
                 }
 
-                // 讀取完畢後，更新欄位選單
-                const allCols = Object.keys(currentMergeData[0].data[0] || {});
-                colSelect.innerHTML = '<option value="FILENAME">使用原始檔名</option>' +
-                    allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+                // 讀取完第一個檔案的欄位作為命名選項
+                if (currentMergeData.length > 0) {
+                    const allCols = Object.keys(currentMergeData[0].data[0] || {});
+                    colSelect.innerHTML = '<option value="FILENAME">使用原始檔名</option>' +
+                        allCols.map(c => `<option value="${c}">${c}</option>`).join('');
 
-                // 綁定預覽更新事件
-                colSelect.onchange = generateMergePreview;
+                    // 重要：重新綁定事件
+                    colSelect.onchange = generateMergePreview;
 
-                status.innerText = "✅ 讀取完畢，請選擇命名欄位";
-                configArea.style.display = 'block';
-                generateMergePreview(); // 初始化預覽
+                    configArea.style.display = 'block';
+                    status.innerText = "✅ 讀取完畢，請選擇命名欄位並預覽";
+
+                    // 強制執行一次預覽生成
+                    generateMergePreview();
+                }
 
             } catch (e) {
                 status.innerText = "❌ 讀取失敗：" + e.message;
+                status.style.color = "red";
             }
         };
 
@@ -2080,10 +2085,23 @@
             const colName = document.getElementById('sheetNameColumn').value;
             const previewDiv = document.getElementById('merge-preview-table');
             let usedNames = {};
-            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="background:#f1f1f1;"><th style="border:1px solid #ddd; padding:8px;">來源檔案</th><th style="border:1px solid #ddd; padding:8px;">分頁命名預覽</th></tr></thead><tbody>';
+
+            // 建立深色字體的表格
+            let html = '<table style="width:100%; border-collapse: collapse; color: #1a1a1a; background: #ffffff;">';
+            html += '<thead><tr style="background:#eeeeee; font-weight: bold;">';
+            html += '<th style="border:1px solid #ccc; padding:10px; text-align:left;">來源檔案</th>';
+            html += '<th style="border:1px solid #ccc; padding:10px; text-align:left;">分頁命名預覽</th>';
+            html += '</tr></thead><tbody>';
 
             currentMergeData.forEach(item => {
-                let rawName = colName === 'FILENAME' ? item.fileName.split('.')[0] : String(item.data[0][colName] || "Unknown");
+                let rawName = "";
+                if (colName === 'FILENAME') {
+                    rawName = item.fileName.split('.')[0];
+                } else {
+                    // 從該檔案的第一行抓取指定欄位值
+                    rawName = String(item.data[0] ? item.data[0][colName] : "Unknown");
+                }
+
                 let cleanName = rawName.replace(/[\[\]\:\*\?\/\\\\]/g, "").substring(0, 25).trim() || "Sheet";
 
                 if (usedNames[cleanName] !== undefined) {
@@ -2092,9 +2110,14 @@
                 } else {
                     usedNames[cleanName] = 0;
                 }
+
                 item.finalSheetName = cleanName;
-                html += `<tr><td style="border:1px solid #ddd; padding:8px;">${item.fileName}</td><td style="border:1px solid #ddd; padding:8px;">${cleanName}</td></tr>`;
+                html += `<tr>`;
+                html += `<td style="border:1px solid #ccc; padding:8px;">${item.fileName}</td>`;
+                html += `<td style="border:1px solid #ccc; padding:8px; font-weight: 500;">${cleanName}</td>`;
+                html += `</tr>`;
             });
+
             html += '</tbody></table>';
             previewDiv.innerHTML = html;
         };

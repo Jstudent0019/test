@@ -1,6 +1,3 @@
-# Query:
-# ContextLines: 1
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 
@@ -930,27 +927,30 @@
                 style="border: 2px dashed var(--border-color); padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; margin-bottom: 20px;"
                 onclick="document.getElementById('mergeFileInput').click()">
                 <p id="merge-file-display" style="margin: 0;">點擊或拖拽多個檔案至此</p>
+                <div id="merge-file-count" style="margin-top: 10px; font-weight: bold;"></div>
                 <input type="file" id="mergeFileInput" multiple accept=".csv, .xlsx" style="display: none;"
-                    onchange="prepareMergePreview()">
-            </div>
-
-            <div id="multi-sheet-config"
-                style="display: none; background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <h4 style="margin-top: 0;">模式二設定：</h4>
-                <div class="form-group">
-                    <label>請選擇分頁命名依據：</label>
-                    <select id="sheetNameColumn" onchange="generateMergePreview()"
-                        style="width: auto; min-width: 200px;"></select>
-                </div>
-                <div id="merge-preview-table"
-                    style="margin-top: 10px; max-height: 200px; overflow-y: auto; font-size: 12px; border: 1px solid var(--border-color);">
-                </div>
+                    onchange="updateMergeCount()">
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <button class="btn" onclick="executeMerge('single')">模式一：合併為單一 Sheet</button>
-                <button class="btn" onclick="executeMerge('multi')">模式二：分頁獨立 (依選擇命名)</button>
+                <button class="btn" onclick="triggerMultiSheetMode()">模式二：分頁獨立 (點選欄位)</button>
             </div>
+
+            <div id="multi-sheet-config"
+                style="display: none; background: var(--bg-secondary); padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid var(--border-color);">
+                <h4 style="margin-top: 0;">模式二：請選擇分頁命名依據</h4>
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+                    <select id="sheetNameColumn"
+                        style="padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);"></select>
+                    <button class="btn btn-small" onclick="executeMerge('multi')"
+                        style="background: #28a745; color: white;">確認並導出檔案</button>
+                </div>
+                <div id="merge-preview-table"
+                    style="max-height: 250px; overflow-y: auto; font-size: 12px; border: 1px solid var(--border-color); background: #fff;">
+                </div>
+            </div>
+
             <div id="merge-status-msg" style="margin-top: 15px; text-align: center; font-size: 14px;"></div>
         </div>
     </div>
@@ -2018,58 +2018,74 @@
             }
         };
 
-        let currentMergeData = []; // 暫存讀取的資料供預覽
+        let currentMergeData = [];
 
-        window.prepareMergePreview = async function () {
+        // 僅更新檔案顯示數量，不即時預覽，避免卡頓
+        window.updateMergeCount = function () {
             const files = document.getElementById('mergeFileInput').files;
-            const display = document.getElementById('merge-file-display');
+            document.getElementById('merge-file-display').innerText = files.length > 0 ? `已選取 ${files.length} 個檔案` : "點擊或拖拽多個檔案至此";
+            document.getElementById('multi-sheet-config').style.display = 'none'; // 重選檔案時隱藏設定區
+            currentMergeData = []; // 清空舊資料
+        };
+
+        // 點選模式二才開始讀取檔案
+        window.triggerMultiSheetMode = async function () {
+            const files = document.getElementById('mergeFileInput').files;
+            const status = document.getElementById('merge-status-msg');
             const configArea = document.getElementById('multi-sheet-config');
             const colSelect = document.getElementById('sheetNameColumn');
 
-            if (files.length === 0) return;
-            display.innerText = `已選取 ${files.length} 個檔案`;
+            if (files.length === 0) return alert("請先選擇檔案");
 
+            status.innerText = "⌛ 正在讀取並解析檔案，請稍候...";
             currentMergeData = [];
-            const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '编号', 'SN', '電話', 'UIN', 'name', 'AccountId', 'User ID'];
 
-            for (let file of files) {
-                const data = await file.arrayBuffer();
-                const tempWB = XLSX.read(data, { type: 'array' });
-                const raw = XLSX.utils.sheet_to_json(tempWB.Sheets[tempWB.SheetNames[0]], { defval: "" });
+            try {
+                for (let file of files) {
+                    const data = await file.arrayBuffer();
+                    const tempWB = XLSX.read(data, { type: 'array' });
+                    const raw = XLSX.utils.sheet_to_json(tempWB.Sheets[tempWB.SheetNames[0]], { defval: "" });
 
-                // 強制處理精度問題
-                const processed = raw.map(row => {
-                    let newRow = {};
-                    for (let key in row) {
-                        const isId = idKeywords.some(k => String(key).includes(k));
-                        newRow[key] = isId ? String(row[key]).trim() : row[key];
-                    }
-                    return newRow;
-                });
-                currentMergeData.push({ fileName: file.name, data: processed });
+                    // 處理帳號精度
+                    const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '编号', 'SN', '電話', 'UIN', 'name', 'AccountId', 'User ID'];
+                    const processed = raw.map(row => {
+                        let newRow = {};
+                        for (let key in row) {
+                            const isId = idKeywords.some(k => String(key).includes(k));
+                            newRow[key] = isId ? String(row[key]).trim() : row[key];
+                        }
+                        return newRow;
+                    });
+                    currentMergeData.push({ fileName: file.name, data: processed });
+                }
+
+                // 讀取完畢後，更新欄位選單
+                const allCols = Object.keys(currentMergeData[0].data[0] || {});
+                colSelect.innerHTML = '<option value="FILENAME">使用原始檔名</option>' +
+                    allCols.map(c => `<option value="${c}">${c}</option>`).join('');
+
+                // 綁定預覽更新事件
+                colSelect.onchange = generateMergePreview;
+
+                status.innerText = "✅ 讀取完畢，請選擇命名欄位";
+                configArea.style.display = 'block';
+                generateMergePreview(); // 初始化預覽
+
+            } catch (e) {
+                status.innerText = "❌ 讀取失敗：" + e.message;
             }
-
-            // 更新欄位選擇器 (取第一個檔案的欄位)
-            const cols = Object.keys(currentMergeData[0].data[0] || {});
-            colSelect.innerHTML = '<option value="FILENAME">使用原始檔名</option>' +
-                cols.map(c => `<option value="${c}">${c}</option>`).join('');
-
-            configArea.style.display = 'block';
-            generateMergePreview();
         };
 
         window.generateMergePreview = function () {
             const colName = document.getElementById('sheetNameColumn').value;
             const previewDiv = document.getElementById('merge-preview-table');
             let usedNames = {};
-            let html = '<table style="width:100%; border-collapse: collapse;"><tr><th style="border:1px solid #ddd; padding:4px;">原始檔案</th><th style="border:1px solid #ddd; padding:4px;">最終分頁名</th></tr>';
+            let html = '<table style="width:100%; border-collapse: collapse;"><thead><tr style="background:#f1f1f1;"><th style="border:1px solid #ddd; padding:8px;">來源檔案</th><th style="border:1px solid #ddd; padding:8px;">分頁命名預覽</th></tr></thead><tbody>';
 
             currentMergeData.forEach(item => {
                 let rawName = colName === 'FILENAME' ? item.fileName.split('.')[0] : String(item.data[0][colName] || "Unknown");
-                // Excel 限制清理
                 let cleanName = rawName.replace(/[\[\]\:\*\?\/\\\\]/g, "").substring(0, 25).trim() || "Sheet";
 
-                // 名稱去重邏輯：解決 "already exists" 報錯
                 if (usedNames[cleanName] !== undefined) {
                     usedNames[cleanName]++;
                     cleanName = `${cleanName}_${usedNames[cleanName]}`;
@@ -2077,17 +2093,24 @@
                     usedNames[cleanName] = 0;
                 }
                 item.finalSheetName = cleanName;
-                html += `<tr><td style="border:1px solid #ddd; padding:4px;">${item.fileName}</td><td style="border:1px solid #ddd; padding:4px;">${cleanName}</td></tr>`;
+                html += `<tr><td style="border:1px solid #ddd; padding:8px;">${item.fileName}</td><td style="border:1px solid #ddd; padding:8px;">${cleanName}</td></tr>`;
             });
-            html += '</table>';
+            html += '</tbody></table>';
             previewDiv.innerHTML = html;
         };
 
         window.executeMerge = async function (mode) {
             const status = document.getElementById('merge-status-msg');
-            if (currentMergeData.length === 0) return alert("請先選擇檔案");
 
-            status.innerText = "⌛ 處理中...";
+            // 如果是模式一，且資料還沒讀取，要在這裡讀取
+            if (mode === 'single' && currentMergeData.length === 0) {
+                await triggerMultiSheetMode(); // 借用讀取邏輯
+                document.getElementById('multi-sheet-config').style.display = 'none'; // 但不顯示選擇器
+            }
+
+            if (currentMergeData.length === 0) return;
+
+            status.innerText = "⌛ 檔案合併導出中...";
             const workbook = XLSX.utils.book_new();
 
             try {
@@ -2100,10 +2123,9 @@
                     });
                 }
                 XLSX.writeFile(workbook, `Merged_${Date.now()}.xlsx`);
-                status.innerText = "✅ 合併完成並已下載";
+                status.innerText = "✅ 合併完成並已下載！";
             } catch (e) {
                 status.innerText = "❌ 失敗：" + e.message;
-                console.error(e);
             }
         };
     </script>

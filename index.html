@@ -1,3 +1,6 @@
+# Query:
+# ContextLines: 1
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 
@@ -922,19 +925,31 @@
                 <h3 style="margin: 0;">📦 專業數據合併工具</h3>
                 <button onclick="resetMergerTool()" class="btn btn-small">清空清單</button>
             </div>
-            <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">支援多檔 CSV/XLSX
-                合併。自動鎖定帳號精度，其餘欄位保留計算格式。</p>
+
             <div id="merge-upload-area"
-                style="border: 2px dashed var(--border-color); padding: 50px; text-align: center; border-radius: 8px; cursor: pointer;"
+                style="border: 2px dashed var(--border-color); padding: 40px; text-align: center; border-radius: 8px; cursor: pointer; margin-bottom: 20px;"
                 onclick="document.getElementById('mergeFileInput').click()">
                 <p id="merge-file-display" style="margin: 0;">點擊或拖拽多個檔案至此</p>
-                <div id="merge-file-count" style="margin-top: 10px; font-weight: bold;"></div>
                 <input type="file" id="mergeFileInput" multiple accept=".csv, .xlsx" style="display: none;"
-                    onchange="updateMergeCount()">
+                    onchange="prepareMergePreview()">
             </div>
-            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+
+            <div id="multi-sheet-config"
+                style="display: none; background: var(--bg-secondary); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin-top: 0;">模式二設定：</h4>
+                <div class="form-group">
+                    <label>請選擇分頁命名依據：</label>
+                    <select id="sheetNameColumn" onchange="generateMergePreview()"
+                        style="width: auto; min-width: 200px;"></select>
+                </div>
+                <div id="merge-preview-table"
+                    style="margin-top: 10px; max-height: 200px; overflow-y: auto; font-size: 12px; border: 1px solid var(--border-color);">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <button class="btn" onclick="executeMerge('single')">模式一：合併為單一 Sheet</button>
-                <button class="btn" onclick="executeMerge('multi')">模式二：分頁獨立 (帳號命名)</button>
+                <button class="btn" onclick="executeMerge('multi')">模式二：分頁獨立 (依選擇命名)</button>
             </div>
             <div id="merge-status-msg" style="margin-top: 15px; text-align: center; font-size: 14px;"></div>
         </div>

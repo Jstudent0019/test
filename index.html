@@ -2037,49 +2037,85 @@
 
             if (files.length === 0) return alert("請先選擇檔案");
 
-            status.innerText = "⌛ 正在讀取並解析檔案，請稍候...";
-            status.style.color = "var(--text-primary)";
+            status.innerText = "⌛ 正在進行進階格式解析，請稍候...";
             currentMergeData = [];
 
             try {
                 for (let file of files) {
                     const data = await file.arrayBuffer();
-                    const tempWB = XLSX.read(data, { type: 'array' });
-                    const raw = XLSX.utils.sheet_to_json(tempWB.Sheets[tempWB.SheetNames[0]], { defval: "" });
+                    // 1. 讀取時開啟 cellNF (Number Format) 與 cellDates
+                    const tempWB = XLSX.read(data, {
+                        type: 'array',
+                        cellDates: true,
+                        cellNF: true,
+                        cellText: false // 我們手動控制格式化，不直接取 text
+                    });
 
-                    const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '電話'];
-                    const processed = raw.map(row => {
+                    const sheet = tempWB.Sheets[tempWB.SheetNames[0]];
+
+                    // 2. 先轉為原始 JSON (raw: true) 以保留數值屬性
+                    const raw = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                    // 3. 進階掃描：針對每一列的每個欄位檢查格式
+                    const idKeywords = ['帳號', '账号', 'ID', 'Code', 'UID', 'IP', '編號', '编号', 'SN', '電話', 'UIN', 'name', 'AccountId', 'User ID'];
+
+                    const processed = raw.map((row, rowIndex) => {
                         let newRow = {};
-                        for (let key in row) {
+                        // sheet_to_json 預設會過濾空欄位，我們從欄位清單遍歷
+                        Object.keys(row).forEach(key => {
+                            const val = row[key];
                             const isId = idKeywords.some(k => String(key).includes(k));
-                            newRow[key] = isId ? String(row[key]).trim() : row[key];
-                        }
+
+                            if (isId) {
+                                // 邏輯 A：帳號類 - 強制轉純文字並去空格
+                                newRow[key] = String(val).trim();
+                            } else if (val instanceof Date) {
+                                // 邏輯 B：日期類 - 如果解析出來是 Date 物件，轉為易讀字串
+                                // 您可以自行調整格式，例如 'yyyy/mm/dd'
+                                newRow[key] = formatDate(val);
+                            } else if (typeof val === 'number') {
+                                // 邏輯 C：數值類 - 保留原始數字格式（不轉字串），以便後續加總
+                                newRow[key] = val;
+                            } else {
+                                newRow[key] = val;
+                            }
+                        });
                         return newRow;
                     });
+
                     currentMergeData.push({ fileName: file.name, data: processed });
                 }
 
-                // 讀取完第一個檔案的欄位作為命名選項
+                // --- 後續 UI 更新邏輯 (與先前相同) ---
                 if (currentMergeData.length > 0) {
                     const allCols = Object.keys(currentMergeData[0].data[0] || {});
                     colSelect.innerHTML = '<option value="FILENAME">使用原始檔名</option>' +
                         allCols.map(c => `<option value="${c}">${c}</option>`).join('');
-
-                    // 重要：重新綁定事件
                     colSelect.onchange = generateMergePreview;
-
                     configArea.style.display = 'block';
-                    status.innerText = "✅ 讀取完畢，請選擇命名欄位並預覽";
-
-                    // 強制執行一次預覽生成
+                    status.innerText = "✅ 進階格式解析完畢";
                     generateMergePreview();
                 }
-
             } catch (e) {
-                status.innerText = "❌ 讀取失敗：" + e.message;
-                status.style.color = "red";
+                status.innerText = "❌ 解析失敗：" + e.message;
             }
         };
+
+        // 輔助函式：自定義日期格式 (可根據需求修改)
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const mm = String(date.getMinutes()).padStart(2, '0');
+            const ss = String(date.getSeconds()).padStart(2, '0');
+
+            // 如果時間是 00:00:00，通常代表只有日期
+            if (hh === '00' && mm === '00' && ss === '00') {
+                return `${y}/${m}/${d}`;
+            }
+            return `${y}/${m}/${d} ${hh}:${mm}:${ss}`;
+        }
 
         window.generateMergePreview = function () {
             const colName = document.getElementById('sheetNameColumn').value;
@@ -2125,10 +2161,9 @@
         window.executeMerge = async function (mode) {
             const status = document.getElementById('merge-status-msg');
 
-            // 如果是模式一，且資料還沒讀取，要在這裡讀取
+            // 如果是模式一且尚未解析資料，先觸發讀取
             if (mode === 'single' && currentMergeData.length === 0) {
-                await triggerMultiSheetMode(); // 借用讀取邏輯
-                document.getElementById('multi-sheet-config').style.display = 'none'; // 但不顯示選擇器
+                await triggerMultiSheetMode();
             }
 
             if (currentMergeData.length === 0) return;
@@ -2138,15 +2173,18 @@
 
             try {
                 if (mode === 'single') {
+                    // 模式一：將所有解析好的 data 攤平成一個陣列
+                    // 這裡的資料已經過 formatDate 處理日期，且帳號已轉字串
                     let combined = currentMergeData.reduce((acc, curr) => acc.concat(curr.data), []);
                     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(combined), "MergedData");
                 } else {
+                    // 模式二：逐一建立 Sheet
                     currentMergeData.forEach(item => {
                         XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(item.data), item.finalSheetName);
                     });
                 }
                 XLSX.writeFile(workbook, `Merged_${Date.now()}.xlsx`);
-                status.innerText = "✅ 合併完成並已下載！";
+                status.innerText = "✅ 合併完成！不論模式一或二，格式均已最佳化。";
             } catch (e) {
                 status.innerText = "❌ 失敗：" + e.message;
             }
